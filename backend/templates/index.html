@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exercise Analysis</title>
+    <style>
+        body {
+            background-color: #121212;
+            color: #ffffff;
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+        }
+        h2 {
+            color: #00e676;
+            margin-bottom: 10px;
+        }
+        .video-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        video {
+            width: 300px;
+            height: 225px;
+            border: 2px solid #00e676;
+            border-radius: 8px;
+        }
+        img {
+            width: 640px;
+            height: 480px;
+            border: 2px solid #00e676;
+            border-radius: 8px;
+        }
+        select {
+            padding: 10px;
+            margin: 20px;
+            background-color: #333;
+            color: white;
+            border: 2px solid #00e676;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        button {
+            padding: 10px 20px;
+            margin-top: 20px;
+            background-color: #00e676;
+            color: #121212;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #00c853;
+        }
+    </style>
+</head>
+<body>
+    <h2>Exercise Analysis</h2>
+    <select id="exerciseSelector">
+        <option value="squat">Squat</option>
+        <option value="pushup">Push-Up</option>
+        <option value="plank">Plank</option>
+    </select>
+
+    <div class="video-container">
+        <div>
+            <h2>Live Video</h2>
+            <video id="video" autoplay></video>
+        </div>
+        <div>
+            <h2>Processed Frame (with Feedback)</h2>
+            <img id="processedFrame">
+        </div>
+    </div>
+
+    <canvas id="canvas" width="640" height="480" style="display:none;"></canvas>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const exerciseSelector = document.getElementById('exerciseSelector');
+
+        // Access the webcam
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                video.srcObject = stream;
+            })
+            .catch(error => {
+                console.error("Error accessing webcam:", error);
+            });
+
+        // Send frames to the backend periodically with the selected exercise
+        function sendFrame() {
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const frame = canvas.toDataURL('image/jpeg');
+            const exercise = exerciseSelector.value;
+
+            fetch('/process_frame', {
+                method: 'POST',
+                body: JSON.stringify({ frame: frame, exercise: exercise }),
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(response => response.blob())
+            .then(blob => {
+                const url = URL.createObjectURL(blob);
+                document.getElementById('processedFrame').src = url;
+            })
+            .catch(error => console.error("Error processing frame:", error));
+
+            setTimeout(sendFrame, 100);  // Send frame every 100 ms
+        }
+
+        video.addEventListener('play', sendFrame);
+    </script>
+</body>
+</html>
