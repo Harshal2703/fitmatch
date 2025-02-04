@@ -16,6 +16,13 @@ def calculate_angle(a, b, c):
         angle = 360 - angle
     return angle
 
+def calculate_accuracy(hip_angle):
+    # The ideal squat angle is around 90 degrees.
+    ideal_angle = 90
+    # Calculate accuracy based on the difference from the ideal angle.
+    accuracy = max(0, 100 - abs(ideal_angle - hip_angle))
+    return accuracy
+
 def squat_analysis(image, results, angle_history, squat_counter, stage):
     feedback = ""
     try:
@@ -31,6 +38,9 @@ def squat_analysis(image, results, angle_history, squat_counter, stage):
         hip_angle = calculate_angle(hip, knee, ankle)
         angle_history.append(hip_angle)
         smooth_hip_angle = np.mean(angle_history[-5:])
+
+        # Calculate accuracy
+        accuracy = calculate_accuracy(smooth_hip_angle)
 
         # Squat detection logic
         if smooth_hip_angle > 160:
@@ -48,11 +58,13 @@ def squat_analysis(image, results, angle_history, squat_counter, stage):
             mp_drawing.DrawingSpec(color=(0, 0, 255), thickness=2, circle_radius=2)
         )
 
-        # Display squat feedback on the image
+        # Display squat feedback and accuracy on the image
         cv2.rectangle(image, (0, 0), (640, 60), (245, 117, 16), -1)
         cv2.putText(image, f'Reps: {squat_counter} | Position: {stage}', (10, 30), 
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
-        cv2.putText(image, feedback, (10, 50), 
+        cv2.putText(image, f'Accuracy: {accuracy}%', (10, 50), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2, cv2.LINE_AA)
+        cv2.putText(image, feedback, (10, 70), 
                     cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2, cv2.LINE_AA)
     except Exception as e:
         print(f"Error in squat analysis: {e}")
