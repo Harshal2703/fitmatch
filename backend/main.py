@@ -5,7 +5,7 @@ import numpy as np
 import base64
 from io import BytesIO
 from PIL import Image
-from thresholds.squat_analysis import squat_analysis
+from thresholds.squat import squat_analysis
 
 app = Flask(__name__)
 
@@ -49,3 +49,4 @@ def process_frame_route():
 
 if __name__ == "__main__":
     app.run(debug=True)
+    
