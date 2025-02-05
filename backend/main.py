@@ -8,6 +8,7 @@ from PIL import Image
 from thresholds.squat import squat_analysis
 from thresholds.plank import plank_analysis
 from thresholds.pushup import pushup_analysis
+from thresholds.high_knees import high_knees_analysis
 import time
 
 app = Flask(__name__)
@@ -30,6 +31,11 @@ pushup_angle_history = []
 pushup_counter = 0
 pushup_stage = None
 
+# Global variables for high knees
+high_knees_history = []
+high_knees_counter = 0
+high_knees_stage = {'left_lifted': False, 'right_lifted': False}  # Initialize as dict
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -39,6 +45,7 @@ def process_frame_route():
     global squat_angle_history, squat_counter, squat_stage
     global plank_time, start_time, in_plank
     global pushup_angle_history, pushup_counter, pushup_stage
+    global high_knees_history, high_knees_counter, high_knees_stage
 
     # Get frame data and exercise type from the request
     data = request.get_json()
@@ -70,11 +77,14 @@ def process_frame_route():
         image, plank_time, start_time, in_plank = plank_analysis(
             image, results, plank_time, start_time, in_plank
         )
+    elif exercise == "high_knees":
+        image, high_knees_counter, high_knees_stage, high_knees_history = high_knees_analysis(
+            image, results, high_knees_history, high_knees_counter, high_knees_stage
+        )
 
     # Encode the processed image to JPEG and return it
     _, buffer = cv2.imencode('.jpg', image)
     return buffer.tobytes(), 200, {'Content-Type': 'image/jpeg'}
-
 
 if __name__ == "__main__":
     app.run(debug=True)
