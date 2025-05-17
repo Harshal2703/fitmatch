@@ -14,7 +14,7 @@ import time
 app = Flask(__name__)
 
 mp_pose = mp.solutions.pose
-pose = mp_pose.Pose()
+pose = mp_pose.Pose(static_image_mode=False, model_complexity=1, enable_segmentation=False)  # [CHANGED] Added config to make pose more optimized for video streams
 
 # Global variables for squat
 squat_angle_history = []
@@ -22,9 +22,9 @@ squat_counter = 0
 squat_stage = None
 
 # Global variables for plank
-plank_time = 0  # Total time spent in plank position
-start_time = None  # Timestamp when plank position is entered
-in_plank = False  # Boolean to track if user is in plank position
+plank_time = 0
+start_time = None
+in_plank = False
 
 # Global variables for pushup
 pushup_angle_history = []
@@ -34,7 +34,7 @@ pushup_stage = None
 # Global variables for high knees
 high_knees_history = []
 high_knees_counter = 0
-high_knees_stage = {'left_lifted': False, 'right_lifted': False}  # Initialize as dict
+high_knees_stage = {'left_lifted': False, 'right_lifted': False}
 
 @app.route('/')
 def index():
@@ -47,22 +47,31 @@ def process_frame_route():
     global pushup_angle_history, pushup_counter, pushup_stage
     global high_knees_history, high_knees_counter, high_knees_stage
 
-    # Get frame data and exercise type from the request
     data = request.get_json()
+    
+    # [CHANGED] Added error handling for missing data
+    if not data or 'frame' not in data or 'exercise' not in data:
+        return {'error': 'Invalid request payload'}, 400
+
     frame_data = data['frame'].split(',')[1]
     exercise = data['exercise']
     frame_bytes = base64.b64decode(frame_data)
 
     # Convert frame data to an image
-    image = np.array(Image.open(BytesIO(frame_bytes)))
-    image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+    try:
+        image = np.array(Image.open(BytesIO(frame_bytes)))
+        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+    except Exception as e:
+        print(f"Image decoding error: {e}")  # [CHANGED] Added error message
+        return {'error': 'Could not decode image'}, 500
 
     # Process the image with MediaPipe Pose
     image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    if image_rgb is not None:
-        results = pose.process(image_rgb)
-    else:
-        print("Image is empty or not valid")
+    results = pose.process(image_rgb)
+
+    # [CHANGED] Added check for results and pose landmarks
+    if not results or not results.pose_landmarks:
+        return {'error': 'No pose landmarks detected'}, 204
 
     # Process based on exercise type
     if exercise == "squat":
@@ -81,8 +90,9 @@ def process_frame_route():
         image, high_knees_counter, high_knees_stage, high_knees_history = high_knees_analysis(
             image, results, high_knees_history, high_knees_counter, high_knees_stage
         )
+    else:
+        return {'error': 'Invalid exercise type'}, 400  # [CHANGED] Added fallback for invalid exercise name
 
-    # Encode the processed image to JPEG and return it
     _, buffer = cv2.imencode('.jpg', image)
     return buffer.tobytes(), 200, {'Content-Type': 'image/jpeg'}
 
